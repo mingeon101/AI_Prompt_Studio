@@ -1,0 +1,1548 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PromptStudio AI</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0a0f;
+    --surface: #12121a;
+    --surface2: #1a1a26;
+    --border: rgba(255,255,255,0.07);
+    --accent: #7c6dfa;
+    --accent2: #fa6dbc;
+    --accent3: #6dfabc;
+    --text: #f0f0ff;
+    --text-muted: #8888aa;
+    --glow: rgba(124,109,250,0.3);
+  }
+
+  * { margin:0; padding:0; box-sizing:border-box; }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Background */
+  body::before {
+    content:'';
+    position:fixed; inset:0;
+    background:
+      radial-gradient(ellipse 60% 50% at 10% 20%, rgba(124,109,250,0.12) 0%, transparent 60%),
+      radial-gradient(ellipse 40% 60% at 90% 80%, rgba(250,109,188,0.08) 0%, transparent 60%);
+    pointer-events:none; z-index:0;
+  }
+
+  /* ===== LAYOUT ===== */
+  #app { display:flex; height:100vh; position:relative; z-index:1; }
+
+  /* ===== SIDEBAR ===== */
+  .sidebar {
+    width: 260px;
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+    transition: width 0.3s ease;
+  }
+
+  .logo {
+    padding: 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .logo-icon {
+    width: 36px; height: 36px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px;
+    flex-shrink: 0;
+  }
+
+  .logo-text {
+    font-family: 'Syne', sans-serif;
+    font-weight: 800;
+    font-size: 16px;
+    background: linear-gradient(135deg, #fff 40%, var(--accent));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  }
+
+  .sidebar-nav {
+    flex: 1;
+    padding: 12px 10px;
+    overflow-y: auto;
+  }
+
+  .nav-section-title {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    color: var(--text-muted);
+    padding: 8px 10px 4px;
+    font-weight: 500;
+  }
+
+  .nav-btn {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    border: none;
+    background: transparent;
+    color: var(--text-muted);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-align: left;
+  }
+
+  .nav-btn:hover { background: var(--surface2); color: var(--text); }
+  .nav-btn.active { background: rgba(124,109,250,0.15); color: var(--accent); }
+  .nav-btn .icon { font-size: 16px; width: 20px; text-align: center; }
+
+  .chat-history-item {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    border-radius: 8px;
+    border: none;
+    background: transparent;
+    color: var(--text-muted);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-align: left;
+  }
+  .chat-history-item:hover { background: var(--surface2); color: var(--text); }
+  .chat-history-item .chat-title { flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+
+  /* ===== SETTINGS PANEL ===== */
+  .sidebar-settings {
+    padding: 12px;
+    border-top: 1px solid var(--border);
+  }
+
+  .api-input-wrap {
+    position: relative;
+    margin-bottom: 8px;
+  }
+
+  .api-input-wrap input {
+    width: 100%;
+    padding: 8px 32px 8px 10px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+    font-size: 12px;
+    font-family: 'DM Sans', sans-serif;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .api-input-wrap input:focus { border-color: var(--accent); }
+  .api-input-wrap input::placeholder { color: var(--text-muted); }
+
+  .api-save-btn {
+    position: absolute; right: 6px; top: 50%; transform: translateY(-50%);
+    background: none; border: none; color: var(--accent); cursor: pointer; font-size: 14px;
+  }
+
+  .model-select {
+    width: 100%;
+    padding: 8px 10px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+    font-size: 12px;
+    font-family: 'DM Sans', sans-serif;
+    outline: none;
+    cursor: pointer;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%238888aa'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+  }
+  .model-select:focus { border-color: var(--accent); }
+
+  /* ===== MAIN CONTENT ===== */
+  .main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  /* ===== TOP BAR ===== */
+  .topbar {
+    padding: 14px 24px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: rgba(10,10,15,0.8);
+    backdrop-filter: blur(10px);
+  }
+
+  .topbar-title {
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 15px;
+  }
+
+  .badge {
+    padding: 3px 8px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 500;
+    background: rgba(124,109,250,0.15);
+    color: var(--accent);
+    border: 1px solid rgba(124,109,250,0.3);
+  }
+
+  .topbar-actions { margin-left: auto; display: flex; gap: 8px; }
+
+  .icon-btn {
+    width: 34px; height: 34px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text-muted);
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 15px;
+    transition: all 0.2s;
+  }
+  .icon-btn:hover { color: var(--text); border-color: var(--accent); }
+
+  /* ===== VIEWS ===== */
+  .view { display: none; flex: 1; flex-direction: column; overflow: hidden; }
+  .view.active { display: flex; }
+
+  /* ===== PROMPT GENERATOR VIEW ===== */
+  .prompt-view-inner {
+    flex: 1;
+    overflow-y: auto;
+    padding: 32px 40px;
+  }
+
+  .prompt-hero {
+    text-align: center;
+    margin-bottom: 40px;
+    animation: fadeUp 0.6s ease both;
+  }
+
+  .prompt-hero h1 {
+    font-family: 'Syne', sans-serif;
+    font-size: clamp(28px, 4vw, 42px);
+    font-weight: 800;
+    line-height: 1.15;
+    margin-bottom: 12px;
+  }
+
+  .gradient-text {
+    background: linear-gradient(90deg, var(--accent) 0%, var(--accent2) 50%, var(--accent3) 100%);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  }
+
+  .prompt-hero p {
+    color: var(--text-muted);
+    font-size: 15px;
+    max-width: 500px;
+    margin: 0 auto;
+    line-height: 1.6;
+  }
+
+  /* Category Pills */
+  .category-scroll {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  .cat-pill {
+    padding: 6px 14px;
+    border-radius: 20px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text-muted);
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-family: 'DM Sans', sans-serif;
+  }
+  .cat-pill:hover { border-color: var(--accent); color: var(--accent); }
+  .cat-pill.active { background: rgba(124,109,250,0.2); border-color: var(--accent); color: var(--text); }
+
+  /* Input Area */
+  .input-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 20px;
+    margin-bottom: 24px;
+    animation: fadeUp 0.6s 0.1s ease both;
+  }
+
+  .input-card textarea {
+    width: 100%;
+    background: transparent;
+    border: none;
+    outline: none;
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 15px;
+    resize: none;
+    min-height: 80px;
+    line-height: 1.7;
+  }
+  .input-card textarea::placeholder { color: var(--text-muted); }
+
+  .input-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid var(--border);
+  }
+
+  .gen-btn {
+    margin-left: auto;
+    padding: 9px 20px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    border: none;
+    border-radius: 10px;
+    color: #fff;
+    font-family: 'Syne', sans-serif;
+    font-weight: 600;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .gen-btn:hover { opacity: 0.85; transform: translateY(-1px); box-shadow: 0 4px 20px var(--glow); }
+  .gen-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+  .attach-btn {
+    padding: 7px 12px;
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text-muted);
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-family: 'DM Sans', sans-serif;
+    display: flex; align-items: center; gap: 5px;
+  }
+  .attach-btn:hover { border-color: var(--accent); color: var(--text); }
+
+  /* Results */
+  .results-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 16px;
+    animation: fadeUp 0.4s ease both;
+  }
+
+  .result-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 20px;
+    position: relative;
+    transition: border-color 0.2s;
+  }
+  .result-card:hover { border-color: rgba(124,109,250,0.4); }
+
+  .result-label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--accent);
+    font-weight: 600;
+    margin-bottom: 10px;
+  }
+
+  .result-text {
+    font-size: 14px;
+    line-height: 1.75;
+    color: var(--text);
+    white-space: pre-wrap;
+  }
+
+  .result-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 14px;
+    padding-top: 14px;
+    border-top: 1px solid var(--border);
+  }
+
+  .r-btn {
+    padding: 6px 12px;
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text-muted);
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-family: 'DM Sans', sans-serif;
+    display: flex; align-items: center; gap: 4px;
+  }
+  .r-btn:hover { background: var(--surface2); color: var(--text); }
+  .r-btn.use-btn { background: rgba(124,109,250,0.15); color: var(--accent); border-color: rgba(124,109,250,0.3); }
+  .r-btn.use-btn:hover { background: rgba(124,109,250,0.25); }
+
+  /* ===== CHAT VIEW ===== */
+  .chat-messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 24px 40px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .chat-welcome {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--text-muted);
+  }
+  .chat-welcome h2 {
+    font-family: 'Syne', sans-serif;
+    font-size: 24px;
+    font-weight: 700;
+    margin-bottom: 10px;
+    color: var(--text);
+  }
+
+  .quick-prompts {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    justify-content: center;
+    margin-top: 24px;
+  }
+  .qp-btn {
+    padding: 8px 16px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    color: var(--text-muted);
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-family: 'DM Sans', sans-serif;
+  }
+  .qp-btn:hover { border-color: var(--accent); color: var(--text); background: rgba(124,109,250,0.1); }
+
+  .msg {
+    display: flex;
+    gap: 12px;
+    animation: fadeUp 0.3s ease;
+    max-width: 800px;
+  }
+  .msg.user { flex-direction: row-reverse; align-self: flex-end; }
+  .msg.assistant { align-self: flex-start; }
+
+  .msg-avatar {
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px;
+    flex-shrink: 0;
+  }
+  .msg.user .msg-avatar { background: linear-gradient(135deg, var(--accent), var(--accent2)); }
+  .msg.assistant .msg-avatar { background: var(--surface2); border: 1px solid var(--border); }
+
+  .msg-bubble {
+    padding: 12px 16px;
+    border-radius: 14px;
+    font-size: 14px;
+    line-height: 1.7;
+    max-width: 600px;
+  }
+  .msg.user .msg-bubble {
+    background: linear-gradient(135deg, rgba(124,109,250,0.25), rgba(250,109,188,0.15));
+    border: 1px solid rgba(124,109,250,0.3);
+    border-top-right-radius: 4px;
+  }
+  .msg.assistant .msg-bubble {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-top-left-radius: 4px;
+  }
+
+  .msg-image img {
+    max-width: 300px;
+    border-radius: 12px;
+    margin-top: 8px;
+    border: 1px solid var(--border);
+  }
+
+  /* Typing indicator */
+  .typing-dots span {
+    display: inline-block;
+    width: 6px; height: 6px;
+    background: var(--accent);
+    border-radius: 50%;
+    margin: 0 2px;
+    animation: dot 1.4s infinite;
+  }
+  .typing-dots span:nth-child(2) { animation-delay: 0.2s; }
+  .typing-dots span:nth-child(3) { animation-delay: 0.4s; }
+
+  /* ===== CHAT INPUT ===== */
+  .chat-input-area {
+    padding: 16px 40px 24px;
+    background: var(--bg);
+  }
+
+  .chat-input-box {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 12px 16px;
+    transition: border-color 0.2s;
+  }
+  .chat-input-box:focus-within { border-color: rgba(124,109,250,0.5); }
+
+  .chat-input-top {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 8px;
+    flex-wrap: wrap;
+  }
+
+  .attach-preview {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    background: rgba(124,109,250,0.15);
+    border: 1px solid rgba(124,109,250,0.3);
+    border-radius: 8px;
+    font-size: 12px;
+    color: var(--accent);
+  }
+  .attach-preview .rm { cursor: pointer; opacity: 0.6; }
+  .attach-preview .rm:hover { opacity: 1; }
+
+  .chat-textarea {
+    width: 100%;
+    background: transparent;
+    border: none;
+    outline: none;
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px;
+    resize: none;
+    max-height: 150px;
+    line-height: 1.6;
+  }
+  .chat-textarea::placeholder { color: var(--text-muted); }
+
+  .chat-input-footer {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid var(--border);
+  }
+
+  .send-btn {
+    margin-left: auto;
+    width: 36px; height: 36px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    border: none;
+    border-radius: 10px;
+    color: #fff;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px;
+    transition: all 0.2s;
+  }
+  .send-btn:hover { opacity: 0.85; transform: scale(1.05); }
+  .send-btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+
+  /* Voice recording indicator */
+  .recording-indicator {
+    display: none;
+    align-items: center;
+    gap: 8px;
+    color: #ff4444;
+    font-size: 12px;
+    animation: pulse 1s infinite;
+  }
+  .recording-indicator.active { display: flex; }
+  .rec-dot { width: 8px; height: 8px; background: #ff4444; border-radius: 50%; }
+
+  /* ===== IMAGE VIEW ===== */
+  .image-view-inner {
+    flex: 1;
+    overflow-y: auto;
+    padding: 32px 40px;
+  }
+
+  .image-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 16px;
+    margin-top: 24px;
+  }
+
+  .image-placeholder {
+    aspect-ratio: 1;
+    background: var(--surface);
+    border: 1px dashed var(--border);
+    border-radius: 12px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-muted);
+    font-size: 13px;
+    gap: 8px;
+  }
+  .image-placeholder .img-icon { font-size: 32px; }
+
+  /* ===== SCROLLBAR ===== */
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+  /* ===== MODAL ===== */
+  .modal-overlay {
+    display: none;
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.7);
+    backdrop-filter: blur(4px);
+    z-index: 100;
+    align-items: center;
+    justify-content: center;
+  }
+  .modal-overlay.open { display: flex; }
+
+  .modal {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 32px;
+    width: 90%;
+    max-width: 460px;
+    animation: scaleIn 0.25s ease;
+  }
+  .modal h3 {
+    font-family: 'Syne', sans-serif;
+    font-size: 18px;
+    font-weight: 700;
+    margin-bottom: 8px;
+  }
+  .modal p { color: var(--text-muted); font-size: 13px; margin-bottom: 20px; line-height: 1.6; }
+
+  .modal-input {
+    width: 100%;
+    padding: 12px 14px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    color: var(--text);
+    font-size: 14px;
+    font-family: 'DM Sans', sans-serif;
+    outline: none;
+    margin-bottom: 12px;
+    transition: border-color 0.2s;
+  }
+  .modal-input:focus { border-color: var(--accent); }
+
+  .modal-actions { display: flex; gap: 10px; justify-content: flex-end; }
+  .modal-cancel {
+    padding: 9px 18px;
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    color: var(--text-muted);
+    cursor: pointer;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px;
+  }
+  .modal-ok {
+    padding: 9px 18px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    border: none;
+    border-radius: 10px;
+    color: #fff;
+    cursor: pointer;
+    font-family: 'Syne', sans-serif;
+    font-weight: 600;
+    font-size: 14px;
+  }
+
+  /* Toast */
+  .toast {
+    position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(80px);
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 10px 20px;
+    font-size: 13px;
+    z-index: 200;
+    transition: transform 0.3s ease;
+    pointer-events: none;
+    white-space: nowrap;
+  }
+  .toast.show { transform: translateX(-50%) translateY(0); }
+
+  /* Animations */
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(16px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes scaleIn {
+    from { opacity: 0; transform: scale(0.92); }
+    to { opacity: 1; transform: scale(1); }
+  }
+  @keyframes dot {
+    0%, 60%, 100% { transform: translateY(0); }
+    30% { transform: translateY(-5px); }
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+  }
+
+  .spinner { display: inline-block; animation: spin 0.8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* Tag for uploaded content */
+  .file-chip {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 3px 10px;
+    background: rgba(109,250,188,0.1);
+    border: 1px solid rgba(109,250,188,0.3);
+    border-radius: 20px;
+    font-size: 11px;
+    color: var(--accent3);
+    margin-top: 6px;
+  }
+
+  /* Section header */
+  .section-header {
+    display: flex; align-items: center; gap: 12px;
+    margin-bottom: 24px;
+  }
+  .section-header h2 {
+    font-family: 'Syne', sans-serif;
+    font-size: 20px;
+    font-weight: 700;
+  }
+
+  /* API Status */
+  .api-status {
+    display: flex; align-items: center; gap: 6px;
+    font-size: 11px; color: var(--text-muted);
+    margin-top: 6px;
+  }
+  .api-status .dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: #888;
+  }
+  .api-status.ok .dot { background: var(--accent3); }
+  .api-status.ok { color: var(--accent3); }
+
+  /* Image gen card */
+  .imggen-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 24px;
+    max-width: 600px;
+    margin: 0 auto;
+  }
+
+  /* Responsive */
+  @media (max-width: 640px) {
+    .sidebar { width: 220px; }
+    .chat-messages, .prompt-view-inner, .image-view-inner { padding: 16px; }
+    .chat-input-area { padding: 12px 16px 16px; }
+  }
+</style>
+</head>
+<body>
+
+<div id="app">
+  <!-- SIDEBAR -->
+  <div class="sidebar">
+    <div class="logo">
+      <div class="logo-icon">✦</div>
+      <div class="logo-text">PromptStudio</div>
+    </div>
+
+    <div class="sidebar-nav">
+      <div class="nav-section-title">메뉴</div>
+      <button class="nav-btn active" onclick="switchView('prompt')" id="nav-prompt">
+        <span class="icon">⚡</span> 프롬프트 생성기
+      </button>
+      <button class="nav-btn" onclick="switchView('chat')" id="nav-chat">
+        <span class="icon">💬</span> AI 채팅
+      </button>
+      <button class="nav-btn" onclick="switchView('image')" id="nav-image">
+        <span class="icon">🎨</span> 이미지 생성
+      </button>
+
+      <div class="nav-section-title" style="margin-top:16px;">최근 대화</div>
+      <div id="chat-history"></div>
+      <button class="nav-btn" onclick="newChat()" style="margin-top:4px;">
+        <span class="icon">＋</span> 새 채팅
+      </button>
+    </div>
+
+    <div class="sidebar-settings">
+      <div style="font-size:11px;text-transform:uppercase;letter-spacing:.1em;color:var(--text-muted);margin-bottom:8px;font-weight:500;">설정</div>
+      <div class="api-input-wrap">
+        <input type="password" id="api-key-input" placeholder="Gemini API Key 입력" />
+        <button class="api-save-btn" onclick="saveApiKey()">✓</button>
+      </div>
+      <div class="api-status" id="api-status">
+        <div class="dot"></div><span>API 미연결</span>
+      </div>
+      <select class="model-select" id="model-select" style="margin-top:10px;">
+        <option value="gemini-1.5-pro">Gemini 1.5 Pro</option>
+        <option value="gemini-1.5-flash" selected>Gemini 1.5 Flash</option>
+        <option value="gemini-2.0-flash">Gemini 2.0 Flash</option>
+      </select>
+    </div>
+  </div>
+
+  <!-- MAIN -->
+  <div class="main">
+    <!-- TOP BAR -->
+    <div class="topbar">
+      <div class="topbar-title" id="topbar-title">⚡ 프롬프트 생성기</div>
+      <div class="badge" id="model-badge">Gemini 1.5 Flash</div>
+      <div class="topbar-actions">
+        <button class="icon-btn" title="설정" onclick="openSettings()">⚙</button>
+        <button class="icon-btn" title="새 채팅" onclick="newChat()">✦</button>
+      </div>
+    </div>
+
+    <!-- PROMPT VIEW -->
+    <div class="view active" id="view-prompt">
+      <div class="prompt-view-inner">
+        <div class="prompt-hero">
+          <h1>당신의 아이디어를<br><span class="gradient-text">AI 최적 프롬프트</span>로</h1>
+          <p>간단히 입력하면, AI를 최대한 활용할 수 있는 정교한 프롬프트를 생성해드립니다.</p>
+        </div>
+
+        <div class="category-scroll" id="cat-pills"></div>
+
+        <div class="input-card">
+          <textarea id="prompt-input" placeholder="예: 파이썬으로 웹 스크래퍼 만드는 법 알려줘&#10;예: 마케팅 이메일 문구 작성해줘&#10;예: 여행 계획 도와줘" rows="3"></textarea>
+          <div id="attach-list" style="display:flex;flex-wrap:wrap;gap:6px;"></div>
+          <div class="input-actions">
+            <button class="attach-btn" onclick="document.getElementById('file-upload-prompt').click()">📎 파일</button>
+            <button class="attach-btn" onclick="document.getElementById('img-upload-prompt').click()">🖼 사진</button>
+            <input type="file" id="file-upload-prompt" hidden accept=".txt,.pdf,.doc,.docx,.md" onchange="attachFile(this,'prompt')">
+            <input type="file" id="img-upload-prompt" hidden accept="image/*" onchange="attachImage(this,'prompt')">
+            <button class="gen-btn" onclick="generatePrompts()" id="gen-btn">
+              <span>✦ 프롬프트 생성</span>
+            </button>
+          </div>
+        </div>
+
+        <div id="prompt-results"></div>
+      </div>
+    </div>
+
+    <!-- CHAT VIEW -->
+    <div class="view" id="view-chat">
+      <div class="chat-messages" id="chat-messages">
+        <div class="chat-welcome" id="chat-welcome">
+          <h2>안녕하세요! 무엇을 도와드릴까요?</h2>
+          <p>Gemini AI와 자유롭게 대화하세요. 파일이나 이미지도 첨부할 수 있어요.</p>
+          <div class="quick-prompts">
+            <button class="qp-btn" onclick="quickPrompt('코드 리뷰를 해줘')">💻 코드 리뷰</button>
+            <button class="qp-btn" onclick="quickPrompt('이메일 초안 작성해줘')">✉️ 이메일 작성</button>
+            <button class="qp-btn" onclick="quickPrompt('아이디어 브레인스토밍 도와줘')">💡 아이디어 탐색</button>
+            <button class="qp-btn" onclick="quickPrompt('요약해줘')">📝 요약</button>
+            <button class="qp-btn" onclick="quickPrompt('번역해줘 (한영/영한)')">🌐 번역</button>
+            <button class="qp-btn" onclick="quickPrompt('데이터 분석 도와줘')">📊 데이터 분석</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="chat-input-area">
+        <div class="chat-input-box">
+          <div class="chat-input-top" id="chat-attachments"></div>
+          <textarea class="chat-textarea" id="chat-input" placeholder="메시지를 입력하세요... (Shift+Enter: 줄바꿈)" rows="1"
+            onkeydown="handleChatKey(event)" oninput="autoResize(this)"></textarea>
+          <div class="chat-input-footer">
+            <button class="attach-btn" onclick="document.getElementById('file-upload-chat').click()">📎</button>
+            <button class="attach-btn" onclick="document.getElementById('img-upload-chat').click()">🖼</button>
+            <input type="file" id="file-upload-chat" hidden accept=".txt,.pdf,.doc,.docx,.md" onchange="attachFile(this,'chat')">
+            <input type="file" id="img-upload-chat" hidden accept="image/*" onchange="attachImage(this,'chat')">
+            <button class="attach-btn" id="voice-btn" onclick="toggleVoice()" title="음성 입력">🎤</button>
+            <div class="recording-indicator" id="rec-indicator">
+              <div class="rec-dot"></div><span>녹음 중...</span>
+            </div>
+            <button class="send-btn" id="send-btn" onclick="sendMessage()">➤</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- IMAGE VIEW -->
+    <div class="view" id="view-image">
+      <div class="image-view-inner">
+        <div class="section-header">
+          <h2>🎨 이미지 생성</h2>
+          <span class="badge">Imagen / Gemini</span>
+        </div>
+
+        <div class="imggen-card">
+          <p style="color:var(--text-muted);font-size:13px;margin-bottom:16px;line-height:1.6;">
+            Gemini API를 통해 이미지를 생성합니다. Gemini 2.0 Flash 모델 선택 시 이미지 생성이 가능합니다.
+          </p>
+          <div class="input-card" style="margin-bottom:16px;">
+            <textarea id="image-prompt-input" placeholder="생성할 이미지를 설명하세요&#10;예: 미래도시의 새벽, 네온 불빛, 사이버펑크 스타일" rows="3" style="width:100%;background:transparent;border:none;outline:none;color:var(--text);font-family:'DM Sans',sans-serif;font-size:14px;resize:none;line-height:1.7;"></textarea>
+          </div>
+          <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;">
+            <button class="cat-pill" onclick="setImageStyle(this,'사진 현실감 있는')">📷 사실적</button>
+            <button class="cat-pill" onclick="setImageStyle(this,'일러스트 아트 스타일')">🎨 일러스트</button>
+            <button class="cat-pill" onclick="setImageStyle(this,'3D 렌더링')">🧊 3D</button>
+            <button class="cat-pill" onclick="setImageStyle(this,'수채화 스타일')">🌊 수채화</button>
+            <button class="cat-pill" onclick="setImageStyle(this,'픽셀 아트')">👾 픽셀아트</button>
+          </div>
+          <button class="gen-btn" style="width:100%;justify-content:center;" onclick="generateImage()">
+            ✦ 이미지 생성
+          </button>
+        </div>
+
+        <div class="image-grid" id="image-results">
+          <div class="image-placeholder"><span class="img-icon">🖼</span><span>생성된 이미지가 여기에 표시됩니다</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- SETTINGS MODAL -->
+<div class="modal-overlay" id="settings-modal">
+  <div class="modal">
+    <h3>⚙ 설정</h3>
+    <p>Gemini API 키를 입력하면 실제 AI 응답을 받을 수 있습니다. API 키는 <a href="https://aistudio.google.com/app/apikey" target="_blank" style="color:var(--accent);">Google AI Studio</a>에서 무료로 발급받으세요.</p>
+    <input type="password" class="modal-input" id="modal-api-input" placeholder="AIzaSy..." />
+    <div class="modal-actions">
+      <button class="modal-cancel" onclick="closeSettings()">취소</button>
+      <button class="modal-ok" onclick="saveApiKeyModal()">저장</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ===== STATE =====
+let apiKey = localStorage.getItem('gemini_api_key') || '';
+let model = 'gemini-1.5-flash';
+let chatHistory = [];
+let chatSessions = [];
+let currentSessionId = null;
+let isRecording = false;
+let recognition = null;
+let promptAttachments = { files: [], images: [] };
+let chatAttachments = { files: [], images: [] };
+let imageStyle = '';
+
+// ===== INIT =====
+function init() {
+  if (apiKey) {
+    document.getElementById('api-key-input').value = apiKey;
+    updateApiStatus(true);
+  }
+  setupCategories();
+  loadChatHistory();
+  document.getElementById('model-select').addEventListener('change', function() {
+    model = this.value;
+    document.getElementById('model-badge').textContent = this.options[this.selectedIndex].text;
+  });
+}
+
+// ===== CATEGORIES =====
+const categories = ['📝 글쓰기','💻 코딩','🎯 마케팅','📊 분석','🎨 창의','🌐 번역','📚 학습','💼 비즈니스','🔬 연구'];
+function setupCategories() {
+  const el = document.getElementById('cat-pills');
+  categories.forEach((c, i) => {
+    const btn = document.createElement('button');
+    btn.className = 'cat-pill' + (i === 0 ? ' active' : '');
+    btn.textContent = c;
+    btn.onclick = () => {
+      document.querySelectorAll('.cat-pill').forEach(p => p.classList.remove('active'));
+      btn.classList.add('active');
+    };
+    el.appendChild(btn);
+  });
+}
+
+// ===== VIEWS =====
+function switchView(name) {
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('view-' + name).classList.add('active');
+  document.getElementById('nav-' + name).classList.add('active');
+  const titles = { prompt:'⚡ 프롬프트 생성기', chat:'💬 AI 채팅', image:'🎨 이미지 생성' };
+  document.getElementById('topbar-title').textContent = titles[name];
+}
+
+// ===== API KEY =====
+function saveApiKey() {
+  const val = document.getElementById('api-key-input').value.trim();
+  if (!val) return;
+  apiKey = val;
+  localStorage.setItem('gemini_api_key', val);
+  updateApiStatus(true);
+  showToast('✓ API 키가 저장되었습니다');
+}
+
+function saveApiKeyModal() {
+  const val = document.getElementById('modal-api-input').value.trim();
+  if (!val) return;
+  apiKey = val;
+  localStorage.setItem('gemini_api_key', val);
+  document.getElementById('api-key-input').value = val;
+  updateApiStatus(true);
+  closeSettings();
+  showToast('✓ API 키가 저장되었습니다');
+}
+
+function updateApiStatus(ok) {
+  const el = document.getElementById('api-status');
+  el.className = 'api-status' + (ok ? ' ok' : '');
+  el.innerHTML = `<div class="dot"></div><span>${ok ? 'API 연결됨' : 'API 미연결'}</span>`;
+}
+
+function openSettings() { document.getElementById('settings-modal').classList.add('open'); }
+function closeSettings() { document.getElementById('settings-modal').classList.remove('open'); }
+document.getElementById('settings-modal').addEventListener('click', function(e) {
+  if (e.target === this) closeSettings();
+});
+
+// ===== GEMINI API CALL =====
+async function callGemini(messages, systemPrompt = '') {
+  if (!apiKey) {
+    showToast('⚠ API 키를 먼저 입력해주세요');
+    return null;
+  }
+  
+  const contents = messages.map(m => ({
+    role: m.role === 'assistant' ? 'model' : 'user',
+    parts: m.parts || [{ text: m.content }]
+  }));
+
+  const body = { contents };
+  if (systemPrompt) {
+    body.systemInstruction = { parts: [{ text: systemPrompt }] };
+  }
+
+  try {
+    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    const data = await res.json();
+    if (data.error) throw new Error(data.error.message);
+    return data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+  } catch (e) {
+    showToast('❌ ' + e.message);
+    return null;
+  }
+}
+
+// ===== PROMPT GENERATOR =====
+const promptTemplates = {
+  default: `당신은 세계 최고의 AI 프롬프트 엔지니어입니다. 사용자의 요청을 분석하여 AI(ChatGPT, Claude, Gemini 등)를 최대한 활용할 수 있는 최적화된 프롬프트 3가지를 생성하세요.
+
+각 프롬프트는:
+1. 명확한 역할/페르소나 지정
+2. 구체적인 지시사항
+3. 원하는 출력 형식 명시
+4. 예시나 제약조건 포함
+
+형식:
+### 프롬프트 1: [유형명]
+[프롬프트 내용]
+
+### 프롬프트 2: [유형명]
+[프롬프트 내용]
+
+### 프롬프트 3: [유형명]
+[프롬프트 내용]
+
+사용자 요청: `
+};
+
+async function generatePrompts() {
+  const input = document.getElementById('prompt-input').value.trim();
+  if (!input) { showToast('내용을 입력해주세요'); return; }
+
+  const btn = document.getElementById('gen-btn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner">⟳</span> 생성 중...';
+
+  const resultsEl = document.getElementById('prompt-results');
+  resultsEl.innerHTML = '<div style="text-align:center;padding:32px;color:var(--text-muted)"><span class="spinner" style="font-size:24px">⟳</span><br><br>프롬프트 생성 중...</div>';
+
+  let response;
+  if (apiKey) {
+    response = await callGemini([{ role: 'user', content: promptTemplates.default + input }]);
+  }
+
+  if (!response) {
+    // Demo mode
+    response = generateDemoPrompts(input);
+  }
+
+  btn.disabled = false;
+  btn.innerHTML = '<span>✦ 프롬프트 생성</span>';
+
+  renderPromptResults(response, input);
+}
+
+function generateDemoPrompts(input) {
+  return `### 프롬프트 1: 전문가 페르소나
+당신은 "${input}" 분야의 10년 경력 전문가입니다. 다음 요청에 대해 전문적이고 실용적인 관점에서 단계별로 상세히 설명해주세요. 각 단계마다 주의사항과 팁을 포함하고, 초보자도 이해할 수 있도록 전문 용어는 쉽게 풀어서 설명해주세요.
+
+### 프롬프트 2: 구조화된 분석
+"${input}"에 대해 다음 구조로 분석해주세요:
+1. **핵심 개념**: 3줄 요약
+2. **단계별 가이드**: 구체적인 실행 방법
+3. **주요 고려사항**: 자주 발생하는 오류와 해결책
+4. **심화 학습**: 추천 자료 및 다음 단계
+
+각 섹션은 명확한 제목과 함께 작성하고, 예시를 포함해주세요.
+
+### 프롬프트 3: 대화형 접근
+나는 "${input}"을(를) 처음 시작하는 초보자입니다. 내가 완전히 이해하고 실습할 수 있도록 도와주세요. 먼저 가장 중요한 개념 3가지를 알려주고, 각각에 대해 실제 적용 가능한 예시를 들어주세요. 내가 이해했는지 확인할 수 있는 체크리스트도 함께 만들어주세요.`;
+}
+
+function renderPromptResults(text, originalInput) {
+  const sections = text.split(/###\s+프롬프트\s*\d+[:\s]*/g).filter(s => s.trim());
+  const labels = text.match(/###\s+프롬프트\s*\d+[:\s]*([^\n]+)/g) || [];
+
+  const resultsEl = document.getElementById('prompt-results');
+  if (!sections.length) {
+    resultsEl.innerHTML = `<div class="result-card"><div class="result-text">${text}</div></div>`;
+    return;
+  }
+
+  resultsEl.innerHTML = '<div class="results-grid" id="results-grid"></div>';
+  const grid = document.getElementById('results-grid');
+
+  sections.forEach((section, i) => {
+    const labelMatch = labels[i]?.match(/프롬프트\s*\d+[:\s]*(.+)/);
+    const label = labelMatch ? labelMatch[1].trim() : `프롬프트 ${i+1}`;
+
+    const card = document.createElement('div');
+    card.className = 'result-card';
+    card.style.animationDelay = (i * 0.1) + 's';
+    card.innerHTML = `
+      <div class="result-label">✦ ${label}</div>
+      <div class="result-text">${section.trim()}</div>
+      <div class="result-actions">
+        <button class="r-btn" onclick="copyText(this, \`${section.trim().replace(/`/g, '\\`')}\`)">📋 복사</button>
+        <button class="r-btn use-btn" onclick="useInChat(\`${section.trim().replace(/`/g, '\\`')}\`)">💬 채팅에서 사용</button>
+      </div>
+    `;
+    grid.appendChild(card);
+  });
+}
+
+function copyText(btn, text) {
+  navigator.clipboard.writeText(text).then(() => {
+    btn.textContent = '✓ 복사됨';
+    setTimeout(() => btn.innerHTML = '📋 복사', 1500);
+  });
+}
+
+function useInChat(text) {
+  switchView('chat');
+  document.getElementById('chat-input').value = text;
+  autoResize(document.getElementById('chat-input'));
+  showToast('채팅창에 프롬프트가 입력되었습니다');
+}
+
+// ===== CHAT =====
+function newChat() {
+  if (chatHistory.length > 0) {
+    saveChatSession();
+  }
+  chatHistory = [];
+  chatAttachments = { files: [], images: [] };
+  document.getElementById('chat-messages').innerHTML = `
+    <div class="chat-welcome" id="chat-welcome">
+      <h2>안녕하세요! 무엇을 도와드릴까요?</h2>
+      <p>Gemini AI와 자유롭게 대화하세요. 파일이나 이미지도 첨부할 수 있어요.</p>
+      <div class="quick-prompts">
+        <button class="qp-btn" onclick="quickPrompt('코드 리뷰를 해줘')">💻 코드 리뷰</button>
+        <button class="qp-btn" onclick="quickPrompt('이메일 초안 작성해줘')">✉️ 이메일 작성</button>
+        <button class="qp-btn" onclick="quickPrompt('아이디어 브레인스토밍 도와줘')">💡 아이디어 탐색</button>
+        <button class="qp-btn" onclick="quickPrompt('요약해줘')">📝 요약</button>
+        <button class="qp-btn" onclick="quickPrompt('번역해줘 (한영/영한)')">🌐 번역</button>
+        <button class="qp-btn" onclick="quickPrompt('데이터 분석 도와줘')">📊 데이터 분석</button>
+      </div>
+    </div>`;
+  document.getElementById('chat-attachments').innerHTML = '';
+}
+
+function saveChatSession() {
+  if (!chatHistory.length) return;
+  const firstMsg = chatHistory[0]?.content?.substring(0, 30) + '...' || '대화';
+  const session = { id: Date.now(), title: firstMsg, history: [...chatHistory] };
+  chatSessions.unshift(session);
+  if (chatSessions.length > 10) chatSessions.pop();
+  loadChatHistory();
+}
+
+function loadChatHistory() {
+  const el = document.getElementById('chat-history');
+  el.innerHTML = '';
+  chatSessions.slice(0, 5).forEach(s => {
+    const btn = document.createElement('button');
+    btn.className = 'chat-history-item';
+    btn.innerHTML = `<span>💬</span><span class="chat-title">${s.title}</span>`;
+    btn.onclick = () => loadSession(s);
+    el.appendChild(btn);
+  });
+}
+
+function loadSession(session) {
+  chatHistory = [...session.history];
+  const el = document.getElementById('chat-messages');
+  el.innerHTML = '';
+  chatHistory.forEach(msg => {
+    appendMessage(msg.role, msg.content, false);
+  });
+  switchView('chat');
+}
+
+function quickPrompt(text) {
+  document.getElementById('chat-input').value = text;
+  sendMessage();
+}
+
+function handleChatKey(e) {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    sendMessage();
+  }
+}
+
+function autoResize(el) {
+  el.style.height = 'auto';
+  el.style.height = Math.min(el.scrollHeight, 150) + 'px';
+}
+
+async function sendMessage() {
+  const input = document.getElementById('chat-input');
+  const text = input.value.trim();
+  if (!text && !chatAttachments.images.length && !chatAttachments.files.length) return;
+
+  // Remove welcome
+  const welcome = document.getElementById('chat-welcome');
+  if (welcome) welcome.remove();
+
+  const sendBtn = document.getElementById('send-btn');
+  sendBtn.disabled = true;
+
+  // Build parts
+  const parts = [];
+  if (text) parts.push({ text });
+  
+  // Add images
+  let displayText = text;
+  for (const img of chatAttachments.images) {
+    parts.push({ inlineData: { mimeType: img.mimeType, data: img.data } });
+    displayText += (displayText ? '\n' : '') + `📎 [이미지: ${img.name}]`;
+  }
+  for (const f of chatAttachments.files) {
+    parts.push({ text: `\n\n[첨부 파일: ${f.name}]\n${f.content}` });
+    displayText += (displayText ? '\n' : '') + `📄 [${f.name}]`;
+  }
+
+  appendMessage('user', displayText);
+  chatHistory.push({ role: 'user', content: displayText, parts });
+  
+  input.value = '';
+  input.style.height = 'auto';
+  chatAttachments = { files: [], images: [] };
+  document.getElementById('chat-attachments').innerHTML = '';
+
+  // Typing indicator
+  const typingId = showTyping();
+
+  let response;
+  if (apiKey) {
+    const msgs = chatHistory.map(m => ({ role: m.role, parts: m.parts || [{ text: m.content }] }));
+    response = await callGemini(msgs);
+  } else {
+    await new Promise(r => setTimeout(r, 1200));
+    response = getDemoResponse(text);
+  }
+
+  removeTyping(typingId);
+
+  if (response) {
+    appendMessage('assistant', response);
+    chatHistory.push({ role: 'assistant', content: response, parts: [{ text: response }] });
+  }
+
+  sendBtn.disabled = false;
+  scrollToBottom();
+}
+
+function getDemoResponse(text) {
+  const responses = [
+    '안녕하세요! API 키를 입력하면 실제 Gemini AI와 대화할 수 있습니다. 현재는 데모 모드입니다.\n\n좌측 사이드바에서 API 키를 입력해보세요. [Google AI Studio](https://aistudio.google.com)에서 무료로 발급받을 수 있습니다.',
+    '좋은 질문이에요! Gemini API를 연결하면 이 질문에 대한 정확하고 상세한 답변을 드릴 수 있습니다.\n\n**현재 데모 모드** - API 키를 설정하여 실제 AI 응답을 받아보세요.',
+    '이 기능은 Gemini API가 연결되면 완전히 활성화됩니다.\n\n`설정 > API Key` 에서 Google AI Studio의 API 키를 입력해주세요.'
+  ];
+  return responses[Math.floor(Math.random() * responses.length)];
+}
+
+function appendMessage(role, content, scroll = true) {
+  const el = document.getElementById('chat-messages');
+  const msg = document.createElement('div');
+  msg.className = `msg ${role}`;
+  
+  const avatar = role === 'user' ? '나' : '✦';
+  const formatted = formatMarkdown(content);
+  
+  msg.innerHTML = `
+    <div class="msg-avatar">${avatar}</div>
+    <div class="msg-bubble">${formatted}</div>`;
+  el.appendChild(msg);
+  if (scroll) scrollToBottom();
+}
+
+function formatMarkdown(text) {
+  return text
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*(.+?)\*/g, '<em>$1</em>')
+    .replace(/`(.+?)`/g, '<code style="background:rgba(255,255,255,0.1);padding:2px 6px;border-radius:4px;font-size:0.9em">$1</code>')
+    .replace(/\n/g, '<br>');
+}
+
+function showTyping() {
+  const el = document.getElementById('chat-messages');
+  const id = 'typing-' + Date.now();
+  const div = document.createElement('div');
+  div.className = 'msg assistant';
+  div.id = id;
+  div.innerHTML = `<div class="msg-avatar">✦</div><div class="msg-bubble"><div class="typing-dots"><span></span><span></span><span></span></div></div>`;
+  el.appendChild(div);
+  scrollToBottom();
+  return id;
+}
+
+function removeTyping(id) {
+  document.getElementById(id)?.remove();
+}
+
+function scrollToBottom() {
+  const el = document.getElementById('chat-messages');
+  el.scrollTop = el.scrollHeight;
+}
+
+// ===== VOICE =====
+function toggleVoice() {
+  if (isRecording) stopRecording();
+  else startRecording();
+}
+
+function startRecording() {
+  if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+    showToast('이 브라우저는 음성 인식을 지원하지 않습니다');
+    return;
+  }
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  recognition = new SpeechRecognition();
+  recognition.lang = 'ko-KR';
+  recognition.continuous = false;
+  recognition.interimResults = false;
+  
+  recognition.onresult = function(e) {
+    const transcript = e.results[0][0].transcript;
+    const input = document.getElementById('chat-input');
+    input.value += (input.value ? ' ' : '') + transcript;
+    autoResize(input);
+  };
+  
+  recognition.onend = () => stopRecording();
+  recognition.onerror = () => stopRecording();
+  
+  recognition.start();
+  isRecording = true;
+  document.getElementById('rec-indicator').classList.add('active');
+  document.getElementById('voice-btn').textContent = '⏹';
+}
+
+function stopRecording() {
+  recognition?.stop();
+  isRecording = false;
+  document.getElementById('rec-indicator').classList.remove('active');
+  document.getElementById('voice-btn').textContent = '🎤';
+}
+
+// ===== FILE ATTACHMENTS =====
+function attachFile(input, context) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    const content = e.target.result;
+    if (context === 'chat') {
+      chatAttachments.files.push({ name: file.name, content });
+      updateChatAttachUI();
+    } else {
+      promptAttachments.files.push({ name: file.name, content });
+      updatePromptAttachUI();
+    }
+    showToast('📄 ' + file.name + ' 첨부됨');
+  };
+  reader.readAsText(file);
+  input.value = '';
+}
+
+function attachImage(input, context) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    const data = e.target.result.split(',')[1];
+    const mimeType = file.type;
+    if (context === 'chat') {
+      chatAttachments.images.push({ name: file.name, data, mimeType });
+      updateChatAttachUI();
+    } else {
+      promptAttachments.images.push({ name: file.name, data, mimeType });
+      updatePromptAttachUI();
+    }
+    showToast('🖼 ' + file.name + ' 첨부됨');
+  };
+  reader.readAsDataURL(file);
+  input.value = '';
+}
+
+function updateChatAttachUI() {
+  const el = document.getElementById('chat-attachments');
+  el.innerHTML = '';
+  [...chatAttachments.files, ...chatAttachments.images].forEach((f, i) => {
+    const chip = document.createElement('div');
+    chip.className = 'attach-preview';
+    chip.innerHTML = `${f.name} <span class="rm" onclick="removeChatAttach(${i})">✕</span>`;
+    el.appendChild(chip);
+  });
+}
+
+function updatePromptAttachUI() {
+  const el = document.getElementById('attach-list');
+  el.innerHTML = '';
+  [...promptAttachments.files, ...promptAttachments.images].forEach(f => {
+    const chip = document.createElement('span');
+    chip.className = 'file-chip';
+    chip.textContent = '📎 ' + f.name;
+    el.appendChild(chip);
+  });
+}
+
+function removeChatAttach(i) {
+  const all = [...chatAttachments.files, ...chatAttachments.images];
+  const item = all[i];
+  chatAttachments.files = chatAttachments.files.filter(f => f !== item);
+  chatAttachments.images = chatAttachments.images.filter(f => f !== item);
+  updateChatAttachUI();
+}
+
+// ===== IMAGE GENERATION =====
+function setImageStyle(btn, style) {
+  document.querySelectorAll('.imggen-card .cat-pill').forEach(p => p.classList.remove('active'));
+  btn.classList.add('active');
+  imageStyle = style;
+}
+
+async function generateImage() {
+  const prompt = document.getElementById('image-prompt-input').value.trim();
+  if (!prompt) { showToast('이미지 설명을 입력해주세요'); return; }
+
+  if (!apiKey) {
+    showToast('⚠ API 키를 먼저 입력해주세요');
+    return;
+  }
+
+  const fullPrompt = imageStyle ? `${imageStyle}: ${prompt}` : prompt;
+  showToast('🎨 이미지 생성 중...');
+
+  // Gemini 2.0 Flash Experimental supports image generation
+  try {
+    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${apiKey}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: fullPrompt }] }],
+        generationConfig: { responseModalities: ['Text', 'Image'] }
+      })
+    });
+    const data = await res.json();
+    const imgPart = data.candidates?.[0]?.content?.parts?.find(p => p.inlineData);
+    
+    if (imgPart) {
+      const imgEl = document.createElement('div');
+      imgEl.innerHTML = `<img src="data:${imgPart.inlineData.mimeType};base64,${imgPart.inlineData.data}" style="width:100%;border-radius:12px;border:1px solid var(--border)">`;
+      document.getElementById('image-results').innerHTML = '';
+      document.getElementById('image-results').appendChild(imgEl);
+    } else {
+      showToast('이미지 생성에 실패했습니다. gemini-2.0-flash 모델을 사용해보세요.');
+    }
+  } catch(e) {
+    showToast('❌ ' + e.message);
+  }
+}
+
+// ===== TOAST =====
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+// ===== START =====
+init();
+</script>
+</body>
+</html>
